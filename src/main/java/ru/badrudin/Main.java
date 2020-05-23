@@ -50,10 +50,22 @@ public class Main {
         }
 
         System.out.println();
-        MoexApi api = new MoexApi().setEngine("stock").setMarket("shares").setBoard("TQBR");
         try {
-            Double result = api.getPrice("LKOH");
-            System.out.println(result);
+            MoexApi api = new MoexApi().setEngine("stock").setMarket("shares").setBoard("TQBR");
+
+
+            var price = api.getPrice("LKOH");
+            System.out.println(price);
+
+            var lot = api.getLotSize("LKOH");
+            System.out.println(lot);
+
+            var shortName = api.getShortName("LKOH");
+            System.out.println(shortName);
+
+            var name = api.getFullName("LKOH");
+            System.out.println(name);
+
         } catch (MoexApiException e) {
             e.printStackTrace();
             System.out.println( e.getMessage());

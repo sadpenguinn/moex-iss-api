@@ -1,11 +1,13 @@
 package ru.badrudin.api;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Scanner;
+import java.util.concurrent.Callable;
 
 import org.json.simple.parser.JSONParser;
 import org.json.simple.JSONObject;
@@ -16,13 +18,15 @@ import ru.badrudin.api.model.Board;
 import ru.badrudin.api.model.Engine;
 import ru.badrudin.api.model.Market;
 
-import javax.xml.parsers.DocumentBuilder;
-
 public class MoexApi {
 
     private String engineName;
     private String marketName;
     private String boardName;
+
+    ///*****************************************************************************************************************
+    /// API
+    ///*****************************************************************************************************************
 
     public MoexApi setEngine(String engineName) {
         this.engineName = engineName;
@@ -42,109 +46,90 @@ public class MoexApi {
     public Double getPrice(String tickerName) throws MoexApiException {
         Double result = null;
         URL request;
-        try {
-            request = new RequestBuilder().buildGetPrice(engineName, marketName, boardName);
-        } catch (MalformedURLException e) {
-            throw new MoexApiException(e);
-        }
         String read;
         try {
+            request = RequestBuilder.buildGetPrice(engineName, marketName, boardName);
             read = readURL(request);
-        } catch (IOException e) {
-            throw new MoexApiException(e);
-        }
-        try {
-            JSONObject json = (JSONObject) new JSONParser().parse(read);
-            JSONObject marketdata = (JSONObject) json.get("marketdata");
-            JSONArray data = (JSONArray) marketdata.get("data");
 
+            JSONArray data = getDataFromJSON(read, "marketdata");
             HashMap<String, Double> tickers = new HashMap<>();
             for (Object datum : data) {
                 JSONArray fields = (JSONArray) datum;
-                String ticker = null;
-                Double price = null;
-
-                int iteration = 1;
                 if (fields.size() != 2) {
-                    throw new MoexApiException("");
+                    throw new MoexApiException("Invalid syntax");
                 }
-                for (Object field : fields) {
-                    switch (iteration) {
-                        case 1:
-                            ticker = (String) field;
-                            break;
-                        case 2:
-                            try {
-                                price = (Double) field;
-                            } catch (ClassCastException e) {
-                                Long priceLong = (Long) field;
-                                price = priceLong.doubleValue();
-                            }
-                            break;
-                        default:
-                            throw new MoexApiException("");
-                    }
-                    ++iteration;
+                Double price;
+                try {
+                    price = (Double) fields.get(1);
+                } catch (ClassCastException e) {
+                    Long priceLong = (Long) fields.get(1);
+                    price = priceLong.doubleValue();
                 }
-                tickers.put(ticker, price);
+                tickers.put((String) fields.get(0), price);
             }
             result = tickers.get(tickerName);
-
-        } catch (ParseException e) {
+        } catch (IOException | ParseException e) {
             throw new MoexApiException(e);
         }
         return result;
     }
 
+    public Long getLotSize(String tickerName) throws MoexApiException {
+        try {
+            Class[] parameters = new Class[3];
+            parameters[0] = String.class;
+            parameters[1] = String.class;
+            parameters[2] = String.class;
+            return getData(tickerName, RequestBuilder.class.getMethod("buildGetLotSize", parameters));
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            throw new MoexApiException(e);
+        }
+    }
+
+    public String getShortName(String tickerName) throws MoexApiException {
+        try {
+            Class[] parameters = new Class[3];
+            parameters[0] = String.class;
+            parameters[1] = String.class;
+            parameters[2] = String.class;
+            return getData(tickerName, RequestBuilder.class.getMethod("buildGetShortName", parameters));
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            throw new MoexApiException(e);
+        }
+    }
+
+    public String getFullName(String tickerName) throws MoexApiException {
+        try {
+            Class[] parameters = new Class[3];
+            parameters[0] = String.class;
+            parameters[1] = String.class;
+            parameters[2] = String.class;
+            return getData(tickerName, RequestBuilder.class.getMethod("buildGetFullName", parameters));
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            throw new MoexApiException(e);
+        }
+    }
+
     public static ArrayList<Engine> getEngines() throws MoexApiException {
         ArrayList<Engine> result = new ArrayList<>();
         URL request;
-        try {
-            request = new RequestBuilder().buildGetEngines();
-        } catch (MalformedURLException e) {
-            throw new MoexApiException(e);
-        }
         String read;
         try {
+            request = RequestBuilder.buildGetEngines();
             read = readURL(request);
-        } catch (IOException e) {
-            throw new MoexApiException(e);
-        }
-        try {
-            JSONObject json = (JSONObject) new JSONParser().parse(read);
-            JSONObject engines = (JSONObject) json.get("engines");
-            JSONArray data = (JSONArray) engines.get("data");
 
+            JSONArray data = getDataFromJSON(read, "engines");
             for (Object datum : data) {
                 JSONArray fields = (JSONArray) datum;
-                Long id = null;
-                String name = null;
-                String desc = null;
-
-                int iteration = 1;
                 if (fields.size() != 3) {
-                    throw new MoexApiException("");
+                    throw new MoexApiException("Invalid syntax");
                 }
-                for (Object field : fields) {
-                    switch (iteration) {
-                        case 1:
-                            id = (Long) field;
-                            break;
-                        case 2:
-                            name = (String) field;
-                            break;
-                        case 3:
-                            desc = (String) field;
-                            break;
-                        default:
-                            throw new MoexApiException("");
-                    }
-                    ++iteration;
-                }
-                result.add(new Engine(id, name, desc));
+                result.add(new Engine(
+                    (Long) fields.get(0),
+                    (String) fields.get(1),
+                    (String) fields.get(2)));
             }
-
-        } catch (ParseException e) {
+        } catch (IOException | ParseException e) {
             throw new MoexApiException(e);
         }
         return result;
@@ -153,52 +138,23 @@ public class MoexApi {
     public static ArrayList<Market> getMarkets(String engine) throws MoexApiException {
         ArrayList<Market> result = new ArrayList<>();
         URL request;
-        try {
-            request = new RequestBuilder().buildGetMarkets(engine);
-        } catch (MalformedURLException e) {
-            throw new MoexApiException(e);
-        }
         String read;
         try {
+            request = RequestBuilder.buildGetMarkets(engine);
             read = readURL(request);
-        } catch (IOException e) {
-            throw new MoexApiException(e);
-        }
-        try {
-            JSONObject json = (JSONObject) new JSONParser().parse(read);
-            JSONObject markets = (JSONObject) json.get("markets");
-            JSONArray data = (JSONArray) markets.get("data");
 
+            JSONArray data = getDataFromJSON(read, "markets");
             for (Object datum : data) {
                 JSONArray fields = (JSONArray) datum;
-                Long id = null;
-                String name = null;
-                String desc = null;
-
-                int iteration = 1;
                 if (fields.size() != 3) {
-                    throw new MoexApiException("");
+                    throw new MoexApiException("Invalid syntax");
                 }
-                for (Object field : fields) {
-                    switch (iteration) {
-                        case 1:
-                            id = (Long) field;
-                            break;
-                        case 2:
-                            name = (String) field;
-                            break;
-                        case 3:
-                            desc = (String) field;
-                            break;
-                        default:
-                            throw new MoexApiException("");
-                    }
-                    ++iteration;
-                }
-                result.add(new Market(id, name, desc));
+                result.add(new Market(
+                    (Long) fields.get(0),
+                    (String) fields.get(1),
+                    (String) fields.get(2)));
             }
-
-        } catch (ParseException e) {
+        } catch (IOException | ParseException e) {
             throw new MoexApiException(e);
         }
         return result;
@@ -211,61 +167,27 @@ public class MoexApi {
     public static ArrayList<Board> getBoards(String engine, String market) throws MoexApiException {
         ArrayList<Board> result = new ArrayList<>();
         URL request;
-        try {
-            request = new RequestBuilder().buildGetBoards(engine, market);
-        } catch (MalformedURLException e) {
-            throw new MoexApiException(e);
-        }
         String read;
         try {
+            request = RequestBuilder.buildGetBoards(engine, market);
             read = readURL(request);
-        } catch (IOException e) {
-            throw new MoexApiException(e);
-        }
-        try {
-            JSONObject json = (JSONObject) new JSONParser().parse(read);
-            JSONObject markets = (JSONObject) json.get("boards");
-            JSONArray data = (JSONArray) markets.get("data");
 
+            JSONArray data = getDataFromJSON(read, "boards");
             for (Object datum : data) {
                 JSONArray fields = (JSONArray) datum;
-                Long id = null;
-                Long boardGroupId = null;
-                String boardId = null;
-                String description = null;
-                Boolean isTraded = false;
-
-                int iteration = 1;
                 if (fields.size() != 5) {
-                    throw new MoexApiException("");
+                    throw new MoexApiException("Invalid syntax");
                 }
-                for (Object field : fields) {
-                    switch (iteration) {
-                        case 1:
-                            id = (Long) field;
-                            break;
-                        case 2:
-                            boardGroupId = (Long) field;
-                            break;
-                        case 3:
-                            boardId = (String) field;
-                            break;
-                        case 4:
-                            description = (String) field;
-                            break;
-                        case 5:
-                            var isTradedLong = (Long) field;
-                            isTraded = isTradedLong == 1;
-                            break;
-                        default:
-                            throw new MoexApiException("");
-                    }
-                    ++iteration;
-                }
-                result.add(new Board(id, boardGroupId, boardId, description, isTraded));
+                var isTradedLong = (Long) fields.get(4);
+                result.add(new Board(
+                    (Long) fields.get(0),
+                    (Long) fields.get(1),
+                    (String) fields.get(2),
+                    (String) fields.get(3),
+                    isTradedLong == 1));
             }
 
-        } catch (ParseException e) {
+        } catch (IOException | ParseException e) {
             throw new MoexApiException(e);
         }
         return result;
@@ -273,6 +195,45 @@ public class MoexApi {
 
     public static ArrayList<Board> getBoards(Engine engine, Market market) throws MoexApiException {
         return getBoards(engine.name, market.name);
+    }
+
+    ///*****************************************************************************************************************
+    /// Utils
+    ///*****************************************************************************************************************
+
+    @SuppressWarnings("unchecked")
+    private <T> T getData(String tickerName, Method urlGetter) throws MoexApiException, InvocationTargetException, IllegalAccessException {
+        T result = null;
+        URL request;
+        String read;
+        try {
+            Object[] parameters = new Object[3];
+            parameters[0] = engineName;
+            parameters[1] = marketName;
+            parameters[2] = boardName;
+            request = (URL) urlGetter.invoke(null, parameters);
+            read = readURL(request);
+
+            JSONArray data = getDataFromJSON(read, "securities");
+            HashMap<String, T> tickers = new HashMap<>();
+            for (Object datum : data) {
+                JSONArray fields = (JSONArray) datum;
+                if (fields.size() != 2) {
+                    throw new MoexApiException("Invalid syntax");
+                }
+                tickers.put((String) fields.get(0), (T) fields.get(1));
+            }
+            result = tickers.get(tickerName);
+        } catch (IOException | ParseException e) {
+            throw new MoexApiException(e);
+        }
+        return result;
+    }
+
+    private static JSONArray getDataFromJSON(String read, String fieldName) throws ParseException {
+        JSONObject json = (JSONObject) new JSONParser().parse(read);
+        JSONObject dataByFields = (JSONObject) json.get(fieldName);
+        return (JSONArray) dataByFields.get("data");
     }
 
     private static String readURL(URL request) throws IOException {
