@@ -7,7 +7,6 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Scanner;
-import java.util.concurrent.Callable;
 
 import org.json.simple.parser.JSONParser;
 import org.json.simple.JSONObject;
@@ -43,44 +42,15 @@ public class MoexApi {
         return this;
     }
 
-    public Double getPrice(String tickerName) throws MoexApiException {
-        Double result = null;
-        URL request;
-        String read;
-        try {
-            request = RequestBuilder.buildGetPrice(engineName, marketName, boardName);
-            read = readURL(request);
-
-            JSONArray data = getDataFromJSON(read, "marketdata");
-            HashMap<String, Double> tickers = new HashMap<>();
-            for (Object datum : data) {
-                JSONArray fields = (JSONArray) datum;
-                if (fields.size() != 2) {
-                    throw new MoexApiException("Invalid syntax");
-                }
-                Double price;
-                try {
-                    price = (Double) fields.get(1);
-                } catch (ClassCastException e) {
-                    Long priceLong = (Long) fields.get(1);
-                    price = priceLong.doubleValue();
-                }
-                tickers.put((String) fields.get(0), price);
-            }
-            result = tickers.get(tickerName);
-        } catch (IOException | ParseException e) {
-            throw new MoexApiException(e);
-        }
-        return result;
-    }
+    /// Securities
 
     public Long getLotSize(String tickerName) throws MoexApiException {
         try {
-            Class[] parameters = new Class[3];
-            parameters[0] = String.class;
-            parameters[1] = String.class;
-            parameters[2] = String.class;
-            return getData(tickerName, RequestBuilder.class.getMethod("buildGetLotSize", parameters));
+            return getData(
+                tickerName,
+                "securities",
+                RequestBuilder.class.getMethod("buildGetLotSize", String.class, String.class, String.class),
+                null);
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new MoexApiException(e);
         }
@@ -88,11 +58,11 @@ public class MoexApi {
 
     public String getShortName(String tickerName) throws MoexApiException {
         try {
-            Class[] parameters = new Class[3];
-            parameters[0] = String.class;
-            parameters[1] = String.class;
-            parameters[2] = String.class;
-            return getData(tickerName, RequestBuilder.class.getMethod("buildGetShortName", parameters));
+            return getData(
+                tickerName,
+                "securities",
+                RequestBuilder.class.getMethod("buildGetShortName", String.class, String.class, String.class),
+                null);
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new MoexApiException(e);
         }
@@ -100,11 +70,35 @@ public class MoexApi {
 
     public String getFullName(String tickerName) throws MoexApiException {
         try {
-            Class[] parameters = new Class[3];
-            parameters[0] = String.class;
-            parameters[1] = String.class;
-            parameters[2] = String.class;
-            return getData(tickerName, RequestBuilder.class.getMethod("buildGetFullName", parameters));
+            return getData(
+                tickerName,
+                "securities",
+                RequestBuilder.class.getMethod("buildGetFullName", String.class, String.class, String.class),
+                null);
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            throw new MoexApiException(e);
+        }
+    }
+
+    /// Metadata
+
+    public Double getPrice(String tickerName) throws MoexApiException {
+
+        try {
+            return getData(
+                tickerName,
+                "marketdata",
+                RequestBuilder.class.getMethod("buildGetPrice", String.class, String.class, String.class),
+                (fields) -> {
+                    Double price;
+                    try {
+                        price = (Double) fields.get(1);
+                    } catch (ClassCastException e) {
+                        Long priceLong = (Long) fields.get(1);
+                        price = priceLong.doubleValue();
+                    }
+                    return price != null ? price : 0;
+                });
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new MoexApiException(e);
         }
@@ -201,9 +195,13 @@ public class MoexApi {
     /// Utils
     ///*****************************************************************************************************************
 
+    interface FieldGetterLambda<TResult> {
+        TResult operate(JSONArray fields);
+    }
+
     @SuppressWarnings("unchecked")
-    private <T> T getData(String tickerName, Method urlGetter) throws MoexApiException, InvocationTargetException, IllegalAccessException {
-        T result = null;
+    private <TResult> TResult getData(String tickerName, String table, Method urlGetter, FieldGetterLambda<TResult> fieldGetter) throws MoexApiException, InvocationTargetException, IllegalAccessException {
+        TResult result = null;
         URL request;
         String read;
         try {
@@ -214,14 +212,20 @@ public class MoexApi {
             request = (URL) urlGetter.invoke(null, parameters);
             read = readURL(request);
 
-            JSONArray data = getDataFromJSON(read, "securities");
-            HashMap<String, T> tickers = new HashMap<>();
+            JSONArray data = getDataFromJSON(read, table);
+            HashMap<String, TResult> tickers = new HashMap<>();
             for (Object datum : data) {
                 JSONArray fields = (JSONArray) datum;
                 if (fields.size() != 2) {
                     throw new MoexApiException("Invalid syntax");
                 }
-                tickers.put((String) fields.get(0), (T) fields.get(1));
+                TResult res;
+                if (fieldGetter != null) {
+                    res = fieldGetter.operate(fields);
+                } else {
+                    res = (TResult) fields.get(1);
+                }
+                tickers.put((String) fields.get(0), res);
             }
             result = tickers.get(tickerName);
         } catch (IOException | ParseException e) {
