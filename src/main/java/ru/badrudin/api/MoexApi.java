@@ -6,10 +6,7 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Scanner;
 
-import org.json.simple.parser.JSONParser;
-import org.json.simple.JSONObject;
 import org.json.simple.JSONArray;
 import org.json.simple.parser.ParseException;
 
@@ -17,27 +14,35 @@ import ru.badrudin.api.model.Board;
 import ru.badrudin.api.model.Engine;
 import ru.badrudin.api.model.Market;
 
-public class MoexApi {
+public class MoexApi<TURLReader extends IURLReader, TJSONReader extends IJSONReader> {
 
     private String engineName;
     private String marketName;
     private String boardName;
 
+    private final TURLReader urlReader;
+    private final TJSONReader jsonReader;
+
+    public MoexApi(TURLReader urlReader, TJSONReader jsonReader) {
+        this.urlReader = urlReader;
+        this.jsonReader = jsonReader;
+    }
+
     ///*****************************************************************************************************************
     /// API
     ///*****************************************************************************************************************
 
-    public MoexApi setEngine(String engineName) {
+    public MoexApi<TURLReader, TJSONReader> setEngine(String engineName) {
         this.engineName = engineName;
         return this;
     }
 
-    public MoexApi setMarket(String marketName) {
+    public MoexApi<TURLReader, TJSONReader> setMarket(String marketName) {
         this.marketName = marketName;
         return this;
     }
 
-    public MoexApi setBoard(String boardName) {
+    public MoexApi<TURLReader, TJSONReader> setBoard(String boardName) {
         this.boardName = boardName;
         return this;
     }
@@ -104,15 +109,15 @@ public class MoexApi {
         }
     }
 
-    public static ArrayList<Engine> getEngines() throws MoexApiException {
+    public ArrayList<Engine> getEngines() throws MoexApiException {
         ArrayList<Engine> result = new ArrayList<>();
         URL request;
         String read;
         try {
             request = RequestBuilder.buildGetEngines();
-            read = readURL(request);
+            read = urlReader.read(request);
 
-            JSONArray data = getDataFromJSON(read, "engines");
+            JSONArray data = jsonReader.readSingleField(read, "engines");
             for (Object datum : data) {
                 JSONArray fields = (JSONArray) datum;
                 if (fields.size() != 3) {
@@ -129,15 +134,15 @@ public class MoexApi {
         return result;
     }
 
-    public static ArrayList<Market> getMarkets(String engine) throws MoexApiException {
+    public ArrayList<Market> getMarkets(String engine) throws MoexApiException {
         ArrayList<Market> result = new ArrayList<>();
         URL request;
         String read;
         try {
             request = RequestBuilder.buildGetMarkets(engine);
-            read = readURL(request);
+            read = urlReader.read(request);
 
-            JSONArray data = getDataFromJSON(read, "markets");
+            JSONArray data = jsonReader.readSingleField(read, "markets");
             for (Object datum : data) {
                 JSONArray fields = (JSONArray) datum;
                 if (fields.size() != 3) {
@@ -154,19 +159,19 @@ public class MoexApi {
         return result;
     }
 
-    public static ArrayList<Market> getMarkets(Engine engine) throws MoexApiException {
+    public ArrayList<Market> getMarkets(Engine engine) throws MoexApiException {
         return getMarkets(engine.name);
     }
 
-    public static ArrayList<Board> getBoards(String engine, String market) throws MoexApiException {
+    public ArrayList<Board> getBoards(String engine, String market) throws MoexApiException {
         ArrayList<Board> result = new ArrayList<>();
         URL request;
         String read;
         try {
             request = RequestBuilder.buildGetBoards(engine, market);
-            read = readURL(request);
+            read = urlReader.read(request);
 
-            JSONArray data = getDataFromJSON(read, "boards");
+            JSONArray data = jsonReader.readSingleField(read, "boards");
             for (Object datum : data) {
                 JSONArray fields = (JSONArray) datum;
                 if (fields.size() != 5) {
@@ -187,7 +192,7 @@ public class MoexApi {
         return result;
     }
 
-    public static ArrayList<Board> getBoards(Engine engine, Market market) throws MoexApiException {
+    public ArrayList<Board> getBoards(Engine engine, Market market) throws MoexApiException {
         return getBoards(engine.name, market.name);
     }
 
@@ -205,14 +210,10 @@ public class MoexApi {
         URL request;
         String read;
         try {
-            Object[] parameters = new Object[3];
-            parameters[0] = engineName;
-            parameters[1] = marketName;
-            parameters[2] = boardName;
-            request = (URL) urlGetter.invoke(null, parameters);
-            read = readURL(request);
+            request = (URL) urlGetter.invoke(null, engineName, marketName, boardName);
+            read = urlReader.read(request);
 
-            JSONArray data = getDataFromJSON(read, table);
+            JSONArray data = jsonReader.readSingleField(read, table);
             HashMap<String, TResult> tickers = new HashMap<>();
             for (Object datum : data) {
                 JSONArray fields = (JSONArray) datum;
@@ -232,20 +233,5 @@ public class MoexApi {
             throw new MoexApiException(e);
         }
         return result;
-    }
-
-    private static JSONArray getDataFromJSON(String read, String fieldName) throws ParseException {
-        JSONObject json = (JSONObject) new JSONParser().parse(read);
-        JSONObject dataByFields = (JSONObject) json.get(fieldName);
-        return (JSONArray) dataByFields.get("data");
-    }
-
-    private static String readURL(URL request) throws IOException {
-        Scanner scanner = new Scanner(request.openStream());
-        StringBuilder input = new StringBuilder();
-        while (scanner.hasNextLine()) {
-            input.append(scanner.nextLine());
-        }
-        return input.toString();
     }
 }
