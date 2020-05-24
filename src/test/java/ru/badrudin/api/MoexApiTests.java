@@ -7,43 +7,32 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
 public class MoexApiTests {
 
-    URLReader urlReader = Mockito.mock(URLReader.class);
-    JSONReader jsonReader = Mockito.mock(JSONReader.class);
-
+    private final URLReader urlReader = Mockito.mock(URLReader.class);
+    private final JSONReader jsonReader = Mockito.mock(JSONReader.class);
     private final MoexApi api = new MoexApi(urlReader, jsonReader);
 
     @Test
     public void testGetPrice() {
         try {
-            var engine = "stock";
-            var market = "shares";
-            var board = "TQBR";
-
-            setUpApi(engine, market, board);
-            URL request = RequestBuilder.buildGetPrice(engine, market, board);
-
-            var response = "response";
-            Double expected = 1.5;
+            Double expected = 6.7;
             Map<String, Double> tickers = new HashMap<String, Double>() {
                 {
-                    put("FGGD", 5.7);
-                    put("EFWE", 3.6);
+                    put("TIC1", 1.2);
+                    put("TIC2", 2.3);
                     put("LKOH", expected);
+                    put("TIC3", 3.4);
                 }
             };
-            var data = buildJSONDataArray(tickers);
-            Mockito.doReturn(response).when(urlReader).read(request);
-            Mockito.doReturn(data).when(jsonReader).readSingleField(response, "marketdata");
-
-            Double res = api.getPrice("LKOH");
-            Assert.assertEquals(res, expected);
-        } catch (ParseException | IOException | MoexApiException e) {
+            doTestGetData("LKOH", tickers, expected, "marketdata", MoexApi.class.getMethod("getPrice", String.class));
+        } catch (NoSuchMethodException e) {
             Assert.fail("Unexpected exception: " + e.toString());
         }
     }
@@ -66,4 +55,25 @@ public class MoexApiTests {
         }
         return data;
     }
+
+    @SuppressWarnings("unchecked")
+    private <TType> void doTestGetData(String ticker, Map<String, TType> tickers, TType expected, String table, Method methodToTest) {
+        try {
+            setUpApi(engine, market, board);
+            URL request = RequestBuilder.buildGetPrice(engine, market, board);
+            var data = buildJSONDataArray(tickers);
+            Mockito.doReturn(response).when(urlReader).read(request);
+            Mockito.doReturn(data).when(jsonReader).readSingleField(response, table);
+            TType res = (TType) methodToTest.invoke(api, ticker);
+            Assert.assertEquals(res, expected);
+        } catch (ParseException | IOException | IllegalAccessException | InvocationTargetException e) {
+            Assert.fail("Unexpected exception: " + e.toString());
+        }
+    }
+
+    // data
+    private final String engine = "stock";
+    private final String market = "shares";
+    private final String board = "TQBR";
+    private final String response = "response";
 }
