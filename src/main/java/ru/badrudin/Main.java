@@ -17,20 +17,20 @@ public class Main {
         try {
             URLReader urlReader = new URLReader();
             JSONReader jsonReader = new JSONReader();
-            MoexApi api = new MoexApi<URLReader, JSONReader>(urlReader, jsonReader).setEngine("stock").setMarket("shares").setBoard("TQBR");
+            MoexApi api = new MoexApi(urlReader, jsonReader).setEngine("stock").setMarket("shares").setBoard("TQBR");
 
 
             var price = api.getPrice("LKOH");
             System.out.println(price);
-
-            var lot = api.getLotSize("LKOH");
-            System.out.println(lot);
-
-            var shortName = api.getShortName("LKOH");
-            System.out.println(shortName);
-
-            var name = api.getFullName("LKOH");
-            System.out.println(name);
+//
+//            var lot = api.getLotSize("LKOH");
+//            System.out.println(lot);
+//
+//            var shortName = api.getShortName("LKOH");
+//            System.out.println(shortName);
+//
+//            var name = api.getFullName("LKOH");
+//            System.out.println(name);
 
         } catch (MoexApiException e) {
             e.printStackTrace();

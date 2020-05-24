@@ -14,16 +14,16 @@ import ru.badrudin.api.model.Board;
 import ru.badrudin.api.model.Engine;
 import ru.badrudin.api.model.Market;
 
-public class MoexApi<TURLReader extends IURLReader, TJSONReader extends IJSONReader> {
+public class MoexApi {
 
     private String engineName;
     private String marketName;
     private String boardName;
 
-    private final TURLReader urlReader;
-    private final TJSONReader jsonReader;
+    private final URLReader urlReader;
+    private final JSONReader jsonReader;
 
-    public MoexApi(TURLReader urlReader, TJSONReader jsonReader) {
+    public MoexApi(URLReader urlReader, JSONReader jsonReader) {
         this.urlReader = urlReader;
         this.jsonReader = jsonReader;
     }
@@ -32,17 +32,17 @@ public class MoexApi<TURLReader extends IURLReader, TJSONReader extends IJSONRea
     /// API
     ///*****************************************************************************************************************
 
-    public MoexApi<TURLReader, TJSONReader> setEngine(String engineName) {
+    public MoexApi setEngine(String engineName) {
         this.engineName = engineName;
         return this;
     }
 
-    public MoexApi<TURLReader, TJSONReader> setMarket(String marketName) {
+    public MoexApi setMarket(String marketName) {
         this.marketName = marketName;
         return this;
     }
 
-    public MoexApi<TURLReader, TJSONReader> setBoard(String boardName) {
+    public MoexApi setBoard(String boardName) {
         this.boardName = boardName;
         return this;
     }
