@@ -29,18 +29,20 @@ public class MoexApiTests {
             URL request = RequestBuilder.buildGetPrice(engine, market, board);
 
             var response = "response";
+            Double expected = 1.5;
             Map<String, Double> tickers = new HashMap<String, Double>() {
                 {
                     put("FGGD", 5.7);
                     put("EFWE", 3.6);
-                    put("LKOH", 1.5);
+                    put("LKOH", expected);
                 }
             };
             var data = buildJSONDataArray(tickers);
             Mockito.doReturn(response).when(urlReader).read(request);
             Mockito.doReturn(data).when(jsonReader).readSingleField(response, "marketdata");
 
-            api.getPrice("LKOH");
+            Double res = api.getPrice("LKOH");
+            Assert.assertEquals(res, expected);
         } catch (ParseException | IOException | MoexApiException e) {
             Assert.fail("Unexpected exception: " + e.toString());
         }
