@@ -8,4 +8,7 @@ public abstract class ApiFields {
     public static final String ENGINES = "/engines";
     public static final String MARKETS = "/markets";
     public static final String BOARDS = "/boards";
+
+    public static final String SECURITIES = "securities";
+    public static final String MARKETDATA = "marketdata";
 }

@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.Scanner;
 
-public class URLReader implements IURLReader {
+public class URLReader {
     public String read(URL request) throws IOException {
         Scanner scanner = new Scanner(request.openStream());
         StringBuilder input = new StringBuilder();

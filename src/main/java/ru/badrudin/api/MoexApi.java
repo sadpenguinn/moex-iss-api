@@ -53,9 +53,9 @@ public class MoexApi {
         try {
             return getData(
                 tickerName,
-                "securities",
+                ApiFields.SECURITIES,
                 RequestBuilder.class.getMethod("buildGetLotSize", String.class, String.class, String.class),
-                null);
+                (fields) -> (Long) fields.get(1));
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new MoexApiException(e);
         }
@@ -65,9 +65,9 @@ public class MoexApi {
         try {
             return getData(
                 tickerName,
-                "securities",
+                ApiFields.SECURITIES,
                 RequestBuilder.class.getMethod("buildGetShortName", String.class, String.class, String.class),
-                null);
+                (fields) -> (String) fields.get(1));
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new MoexApiException(e);
         }
@@ -77,9 +77,9 @@ public class MoexApi {
         try {
             return getData(
                 tickerName,
-                "securities",
+                ApiFields.SECURITIES,
                 RequestBuilder.class.getMethod("buildGetFullName", String.class, String.class, String.class),
-                null);
+                (fields) -> (String) fields.get(1));
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new MoexApiException(e);
         }
@@ -92,7 +92,7 @@ public class MoexApi {
         try {
             return getData(
                 tickerName,
-                "marketdata",
+                ApiFields.MARKETDATA,
                 RequestBuilder.class.getMethod("buildGetPrice", String.class, String.class, String.class),
                 (fields) -> {
                     Double price;
@@ -204,7 +204,6 @@ public class MoexApi {
         TResult operate(JSONArray fields);
     }
 
-    @SuppressWarnings("unchecked")
     private <TResult> TResult getData(String tickerName, String table, Method urlGetter, FieldGetterLambda<TResult> fieldGetter) throws MoexApiException, InvocationTargetException, IllegalAccessException {
         TResult result = null;
         URL request;
@@ -212,7 +211,6 @@ public class MoexApi {
         try {
             request = (URL) urlGetter.invoke(null, engineName, marketName, boardName);
             read = urlReader.read(request);
-
             JSONArray data = jsonReader.readSingleField(read, table);
             HashMap<String, TResult> tickers = new HashMap<>();
             for (Object datum : data) {
@@ -220,12 +218,7 @@ public class MoexApi {
                 if (fields.size() != 2) {
                     throw new MoexApiException("Invalid syntax");
                 }
-                TResult res;
-                if (fieldGetter != null) {
-                    res = fieldGetter.operate(fields);
-                } else {
-                    res = (TResult) fields.get(1);
-                }
+                TResult res = fieldGetter.operate(fields);
                 tickers.put((String) fields.get(0), res);
             }
             result = tickers.get(tickerName);

@@ -17,18 +17,22 @@ public class RequestBuilder {
     }
 
     static public URL buildGetPrice(String engine, String market, String board) throws MalformedURLException {
-        return new URL(ApiFields.baseURL + ApiFields.ENGINES + "/" + engine + ApiFields.MARKETS + "/" + market + ApiFields.BOARDS + "/" + board + "/securities" + ApiFields.jsonFormat + "?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,LAST");
+        return new URL(buildGetInternal(engine, market, board) + "?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,LAST");
     }
 
     static public URL buildGetLotSize(String engine, String market, String board) throws MalformedURLException {
-        return new URL(ApiFields.baseURL + ApiFields.ENGINES + "/" + engine + ApiFields.MARKETS + "/" + market + ApiFields.BOARDS + "/" + board + "/securities" + ApiFields.jsonFormat + "?iss.meta=off&iss.only=securities&securities.columns=SECID,LOTSIZE");
+        return new URL(buildGetInternal(engine, market, board) + "?iss.meta=off&iss.only=securities&securities.columns=SECID,LOTSIZE");
     }
 
     static public URL buildGetShortName(String engine, String market, String board) throws MalformedURLException {
-        return new URL(ApiFields.baseURL + ApiFields.ENGINES + "/" + engine + ApiFields.MARKETS + "/" + market + ApiFields.BOARDS + "/" + board + "/securities" + ApiFields.jsonFormat + "?iss.meta=off&iss.only=securities&securities.columns=SECID,SHORTNAME");
+        return new URL(buildGetInternal(engine, market, board) + "?iss.meta=off&iss.only=securities&securities.columns=SECID,SHORTNAME");
     }
 
     static public URL buildGetFullName(String engine, String market, String board) throws MalformedURLException {
-        return new URL(ApiFields.baseURL + ApiFields.ENGINES + "/" + engine + ApiFields.MARKETS + "/" + market + ApiFields.BOARDS + "/" + board + "/securities" + ApiFields.jsonFormat + "?iss.meta=off&iss.only=securities&securities.columns=SECID,SECNAME");
+        return new URL(buildGetInternal(engine, market, board) + "?iss.meta=off&iss.only=securities&securities.columns=SECID,SECNAME");
+    }
+
+    static private String buildGetInternal(String engine, String market, String board) {
+        return ApiFields.baseURL + ApiFields.ENGINES + "/" + engine + ApiFields.MARKETS + "/" + market + ApiFields.BOARDS + "/" + board + "/securities" + ApiFields.jsonFormat;
     }
 }
